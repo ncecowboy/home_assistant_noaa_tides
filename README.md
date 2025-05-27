@@ -1,6 +1,6 @@
 # NOAA Tides and Currents Sensor for Home-Assistant
 
-This library is a [fork of the core component](https://www.home-assistant.io/integrations/noaa_tides/) which adds some additional features and migrates the backend from the now-defunct [py_noaa](https://github.com/GClunies/py_noaa) to the superseding [noaa_coops](https://github.com/GClunies/noaa_coops).
+This library is a [fork of the core component](https://www.home-assistant.io/integrations/noaa_tides/) which adds some additional features and migrates the backend from the now-defunct [py_noaa](https://github.com/GClunies/py_noaa) to the superseding [noaa_coops](https://github.com/GClunies/noaa_coops). Primary code based on work by jshufro https://github.com/jshufro/home_assistant_noaa_tides/
 
 ## Installation
 
