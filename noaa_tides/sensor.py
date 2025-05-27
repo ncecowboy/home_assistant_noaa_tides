@@ -139,6 +139,7 @@ class NOAATidesAndCurrentsSensor(Entity):
                     self.attr["next_tide_type"] = "Low"
                     self.attr["last_tide_type"] = "High"
                     self.attr["low_tide_level"] = row.predicted_wl
+                self.attr["next_tide_level"] = row.predicted_wl
                 self.update_tide_factor_from_attr()
                 return self.attr
         return self.attr
@@ -197,41 +198,6 @@ class NOAATidesAndCurrentsSensor(Entity):
             _LOGGER.error(f"Couldn't connect to NOAA Ties and Currents API: {err}")
         return None
 
-    try:
-        # Fetch water level data
-        # The 'product' parameter is crucial here for specifying water level
-        df_water_level = self._station.get_data(
-            begin_date=begin.strftime("%Y%m%d %H:%M"),
-            end_date=end.strftime("%Y%m%d %H:%M"),
-            product="water_level", # Request water level data
-            datum="MLLW",
-            units=self._unit_system,
-            time_zone=self._timezone,
-            interval="6_minute",
-        )
-
-        if df_water_level.empty:
-            _LOGGER.warning(f"No water level data found for station {station_id} "
-                            f"from {begin_date_str} to {end_date_str} with datum {datum}.")
-            return None
-
-        self.attr["water_level"] == df_water_level
-
-        _LOGGER.info(f"Successfully retrieved water level data for station {station_id}.")
-        return df_water_level
-
-    except ValueError as err:
-        _LOGGER.error(f"Data retrieval error for station {station_id}: {err.args}")
-        return None
-    except requests.exceptions.ConnectionError as err:
-        _LOGGER.error(f"Network connection error during data retrieval for station {station_id}: {err}")
-        return None
-    except Exception as err:
-        _LOGGER.error(f"An unexpected error occurred during data retrieval for station {station_id}: {err}")
-        return None
-
-
-    
     async def async_update(self):
         """Get the latest data from NOAA Tides and Currents API."""
         if not self.data is None:
@@ -441,3 +407,4 @@ class NOAABuoySensor(Entity):
     async def async_update(self):
         """Get the latest data from NOAA Buoy API."""
         ghass.async_add_executor_job(self.buoy_query)
+
