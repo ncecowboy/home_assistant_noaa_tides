@@ -36,22 +36,22 @@ jobs:
       - name: Update version in manifest.json
         run: |
           VERSION="${{ github.event.inputs.version }}"
-          sed -i "s/\"version\": \".*\"/\"version\": \"$VERSION\"/" noaa_tides/manifest.json
+          sed -i "s/\"version\": \".*\"/\"version\": \"$VERSION\"/" custom_components/noaa_tides/manifest.json
           
           # Verify the change was made
-          if ! grep -q "\"version\": \"$VERSION\"" noaa_tides/manifest.json; then
+          if ! grep -q "\"version\": \"$VERSION\"" custom_components/noaa_tides/manifest.json; then
             echo "Error: Failed to update version in manifest.json"
             exit 1
           fi
           
           echo "Updated manifest.json to version $VERSION"
-          cat noaa_tides/manifest.json
+          cat custom_components/noaa_tides/manifest.json
 
       - name: Commit version update
         run: |
           git config --local user.email "github-actions[bot]@users.noreply.github.com"
           git config --local user.name "github-actions[bot]"
-          git add noaa_tides/manifest.json
+          git add custom_components/noaa_tides/manifest.json
           git commit -m "Bump version to ${{ github.event.inputs.version }}"
 
       - name: Create tag
@@ -86,9 +86,9 @@ jobs:
       - name: Create release archive
         run: |
           # Create a zip file of the integration for HACS
-          cd noaa_tides
-          zip -r ../noaa_tides.zip . -x "*.pyc" -x "__pycache__/*" -x "*/__pycache__/*"
-          cd ..
+          cd custom_components/noaa_tides
+          zip -r ../../noaa_tides.zip . -x "*.pyc" -x "__pycache__/*" -x "*/__pycache__/*"
+          cd ../..
           ls -lh noaa_tides.zip
 
       - name: Create GitHub Release

@@ -1,6 +1,5 @@
 {
   "name": "NOAA Tides and Currents",
-  "content_in_root": true,
   "render_readme": true,
   "homeassistant": "2023.1.0"
 }
