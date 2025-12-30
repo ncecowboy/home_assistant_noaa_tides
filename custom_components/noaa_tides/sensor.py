@@ -44,6 +44,9 @@ BUOY_ATTRIBUTION = "Data provided by NDBC"
 DEFAULT_NAME = "NOAA Tides"
 DEFAULT_TIMEZONE = "lst_ldt"
 
+# Time window for fetching current water level observations (in hours)
+WATER_LEVEL_LOOKBACK_HOURS = 1
+
 TIMEZONES = ["gmt", "lst", "lst_ldt"]
 UNIT_SYSTEMS = ["english", "metric"]
 STATION_TYPES = ["tides", "temp", "buoy"]
@@ -362,6 +365,9 @@ class NOAATidesAndCurrentsSensor(CoordinatorEntity, SensorEntity):
         self._station_id = station_id
         self._unit_system = unit_system
         self._entry_id = entry_id
+        self._station = None
+        self.data = None
+        self.current_water_level_data = None
         self.attr = None
 
     @property
@@ -403,6 +409,18 @@ class NOAATidesAndCurrentsSensor(CoordinatorEntity, SensorEntity):
         if data is None:
             return self.attr
 
+        # Add current water level data if available
+        if self.current_water_level_data is not None and not self.current_water_level_data.empty:
+            try:
+                # Get the most recent water level observation
+                latest_observation = self.current_water_level_data.iloc[-1]
+                latest_time = self.current_water_level_data.index[-1]
+                # 'v' is the water level value column from NOAA API
+                self.attr["current_water_level"] = latest_observation.v
+                self.attr["current_water_level_time"] = latest_time.strftime("%Y-%m-%dT%H:%M")
+            except (IndexError, AttributeError) as err:
+                _LOGGER.debug(f"Could not extract current water level data: {err}")
+
         now = datetime.now()
         tide_text = None
         most_recent = None
@@ -441,6 +459,69 @@ class NOAATidesAndCurrentsSensor(CoordinatorEntity, SensorEntity):
                     next_tide = "Low"
                 tide_time = index.strftime("%-I:%M %p")
                 return f"{next_tide} tide at {tide_time}"
+
+    def noaa_coops_update(self):
+        _LOGGER.debug("update queried.")
+
+        if self._station is None:
+            _LOGGER.debug("No station object exists yet- creating one.")
+            try:
+                self._station = nc.Station(self._station_id)
+            except requests.exceptions.ConnectionError as err:
+                _LOGGER.error(f"Couldn't create a NOAA station object. Will retry next update. Error: {err}")
+                self._station = None
+                return
+
+        begin = datetime.now() - timedelta(hours=24)
+        begin_date = begin.strftime("%Y%m%d %H:%M")
+        end = begin + timedelta(hours=48)
+        end_date = end.strftime("%Y%m%d %H:%M")
+        try:
+            df_predictions = self._station.get_data(
+                begin_date=begin_date,
+                end_date=end_date,
+                product="predictions",
+                datum="MLLW",
+                interval="hilo",
+                units=self._unit_system,
+                time_zone=self._timezone,
+            )
+
+            self.data = df_predictions
+            _LOGGER.debug(f"Data = {self.data}")
+            _LOGGER.debug(
+                "Recent Tide data queried with start time set to %s",
+                begin_date,
+            )
+        except ValueError as err:
+            _LOGGER.error(f"Check NOAA Tides and Currents: {err.args}")
+        except requests.exceptions.ConnectionError as err:
+            _LOGGER.error(f"Couldn't connect to NOAA Tides and Currents API: {err}")
+
+        # Fetch current water level data
+        try:
+            current_end = datetime.now()
+            current_begin = current_end - timedelta(hours=WATER_LEVEL_LOOKBACK_HOURS)
+            df_water_level = self._station.get_data(
+                begin_date=current_begin.strftime("%Y%m%d %H:%M"),
+                end_date=current_end.strftime("%Y%m%d %H:%M"),
+                product="water_level",
+                datum="MLLW",
+                units=self._unit_system,
+                time_zone=self._timezone,
+            )
+            self.current_water_level_data = df_water_level
+            _LOGGER.debug(
+                "Current water level data retrieved: %d records, latest at %s",
+                len(df_water_level) if df_water_level is not None else 0,
+                current_end.strftime("%Y%m%d %H:%M"),
+            )
+        except ValueError as err:
+            _LOGGER.debug(f"Could not fetch current water level data: {err.args}")
+            self.current_water_level_data = None
+        except requests.exceptions.ConnectionError as err:
+            _LOGGER.debug(f"Couldn't connect to NOAA Tides and Currents API for water level: {err}")
+            self.current_water_level_data = None
         return None
 
 class NOAATemperatureSensor(CoordinatorEntity, SensorEntity):
