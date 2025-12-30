@@ -10,7 +10,7 @@
         },
         "data_description": {
           "type": "Type of data to monitor (tides, temp, or buoy)",
-          "entry_method": "Choose 'lookup' to browse stations by state or 'manual' to enter station ID directly"
+          "entry_method": "How to select your station"
         }
       },
       "state": {
@@ -63,8 +63,8 @@
     },
     "entry_method": {
       "options": {
-        "lookup": "Browse stations by state",
-        "manual": "Enter station ID manually"
+        "lookup": "Lookup - Browse stations by state (easier, recommended)",
+        "manual": "Manual - Enter station ID directly (advanced)"
       }
     }
   }

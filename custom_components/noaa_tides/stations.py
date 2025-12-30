@@ -89,7 +89,7 @@ def get_station_options(stations: list[dict[str, Any]]) -> dict[str, str]:
         stations: List of station dictionaries
     
     Returns:
-        Dict mapping station_id to display name (name - id)
+        Dict mapping station_id to display name (name - id), sorted alpha-numerically
     """
     options = {}
     for station in stations:
@@ -97,7 +97,10 @@ def get_station_options(stations: list[dict[str, Any]]) -> dict[str, str]:
         station_name = station.get("name", "Unknown")
         if station_id:
             options[station_id] = f"{station_name} ({station_id})"
-    return options
+    
+    # Sort by display name (station name and ID) alpha-numerically
+    sorted_options = dict(sorted(options.items(), key=lambda x: x[1].lower()))
+    return sorted_options
 
 
 async def verify_station_id(hass, station_id: str, station_type: str) -> tuple[bool, str]:

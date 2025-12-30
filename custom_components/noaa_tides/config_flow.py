@@ -68,6 +68,7 @@ class NOAATidesConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         """Initialize config flow."""
         self.config_data: dict[str, Any] = {}
         self.stations_cache: list[dict[str, Any]] = []
+        self.station_name: str | None = None
 
     async def async_step_user(
         self, user_input: dict[str, Any] | None = None
@@ -143,6 +144,14 @@ class NOAATidesConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
 
         if user_input is not None:
             self.config_data[CONF_STATION_ID] = user_input[CONF_STATION_ID]
+            
+            # Look up and store the station name
+            station_id = user_input[CONF_STATION_ID]
+            for station in self.stations_cache:
+                if station.get("id") == station_id:
+                    self.station_name = station.get("name", "Unknown")
+                    break
+            
             return await self.async_step_name()
 
         # Filter stations by selected state
@@ -184,6 +193,8 @@ class NOAATidesConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                 _LOGGER.warning("Station validation failed: %s", message)
             else:
                 self.config_data[CONF_STATION_ID] = station_id
+                # Store the station name from verification
+                self.station_name = message
                 return await self.async_step_name()
 
         data_schema = vol.Schema(
@@ -203,27 +214,35 @@ class NOAATidesConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         errors: dict[str, str] = {}
 
         if user_input is not None:
-            self.config_data[CONF_NAME] = user_input.get(CONF_NAME, DEFAULT_NAME)
+            # Use provided name or fall back to station name or DEFAULT_NAME
+            if CONF_NAME in user_input and user_input[CONF_NAME]:
+                self.config_data[CONF_NAME] = user_input[CONF_NAME]
+            elif self.station_name:
+                self.config_data[CONF_NAME] = self.station_name
+            else:
+                self.config_data[CONF_NAME] = DEFAULT_NAME
             
             # Final validation
             try:
                 info = await validate_input(self.hass, self.config_data)
             except ValueError:
                 errors["base"] = "cannot_connect"
+                default_name = self.station_name if self.station_name else DEFAULT_NAME
                 return self.async_show_form(
                     step_id="name", 
                     data_schema=vol.Schema({
-                        vol.Optional(CONF_NAME, default=DEFAULT_NAME): str,
+                        vol.Optional(CONF_NAME, default=default_name): str,
                     }),
                     errors=errors
                 )
             except Exception:  # pylint: disable=broad-except
                 _LOGGER.exception("Unexpected exception")
                 errors["base"] = "unknown"
+                default_name = self.station_name if self.station_name else DEFAULT_NAME
                 return self.async_show_form(
                     step_id="name", 
                     data_schema=vol.Schema({
-                        vol.Optional(CONF_NAME, default=DEFAULT_NAME): str,
+                        vol.Optional(CONF_NAME, default=default_name): str,
                     }),
                     errors=errors
                 )
@@ -243,9 +262,12 @@ class NOAATidesConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
 
             return self.async_create_entry(title=info["title"], data=final_data)
 
+        # Use station name as default if available, otherwise use DEFAULT_NAME
+        default_name = self.station_name if self.station_name else DEFAULT_NAME
+        
         data_schema = vol.Schema(
             {
-                vol.Optional(CONF_NAME, default=DEFAULT_NAME): str,
+                vol.Optional(CONF_NAME, default=default_name): str,
             }
         )
 
