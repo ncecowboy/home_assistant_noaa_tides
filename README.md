@@ -78,6 +78,33 @@ sensor:
 
 Different stations support different features (products/datums), so use the [station finder](https://tidesandcurrents.noaa.gov/) to select the right station for `tides` vs `temp` types.
 
+## Available Sensor Attributes
+
+### Tides Sensor Attributes
+
+The tides sensor provides the following attributes:
+
+- **`next_tide_time`**: Time of the next high or low tide (e.g., "3:45 PM")
+- **`next_tide_type`**: Type of next tide ("High" or "Low")
+- **`last_tide_time`**: Time of the last high or low tide (e.g., "9:30 AM")
+- **`last_tide_type`**: Type of last tide ("High" or "Low")
+- **`high_tide_level`**: Predicted water level at high tide (in feet or meters)
+- **`low_tide_level`**: Predicted water level at low tide (in feet or meters)
+- **`tide_factor`**: Calculated tide position between 0-100% (based on sine curve between last and next tide)
+- **`current_water_level`**: Current observed water level (in feet or meters, updates with scan interval)
+- **`current_water_level_time`**: Timestamp of the current water level observation (ISO 8601 format)
+
+### Temperature Sensor Attributes
+
+- **`temperature`**: Current water temperature
+- **`temperature_time`**: Timestamp of water temperature reading
+- **`air_temperature`**: Current air temperature at the station
+- **`air_temperature_time`**: Timestamp of air temperature reading
+
+### Buoy Sensor Attributes
+
+Buoy sensors provide various meteorological and oceanographic data depending on the specific buoy. Common attributes include wave height, wave period, wind speed, air pressure, and water temperature.
+
 ## Usage Examples
 
 ### Template Sensors
@@ -95,6 +122,10 @@ template:
       - name: "Water level"
         state: "{{ state_attr('sensor.tides', 'tide_factor') }}"
         unit_of_measurement: '%'
+      - name: "Current water level"
+        state: "{{ state_attr('sensor.tides', 'current_water_level') }}"
+        unit_of_measurement: 'ft'  # or 'm' for metric
+        device_class: distance
       - name: "Beach air temp"
         state: "{{ state_attr('sensor.water_temp', 'air_temperature') }}"
 ```
