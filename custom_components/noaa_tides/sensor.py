@@ -110,7 +110,7 @@ class NOAATidesDataUpdateCoordinator(DataUpdateCoordinator):
             time_zone=self.timezone,
         )
 
-        _LOGGER.debug(f"Tide data queried with start time set to {begin_date}")
+        _LOGGER.debug("Tide data queried with start time set to %s", begin_date)
         return df_predictions
 
 
@@ -169,7 +169,7 @@ class NOAATemperatureDataUpdateCoordinator(DataUpdateCoordinator):
                 begin.strftime("%m-%d-%Y %H:%M"),
             )
         except ValueError as err:
-            _LOGGER.error(f"Check NOAA Tides and Currents: {err.args}")
+            _LOGGER.error("Check NOAA Tides and Currents: %s", err.args)
 
         try:
             air_temps = self.station.get_data(
@@ -184,7 +184,7 @@ class NOAATemperatureDataUpdateCoordinator(DataUpdateCoordinator):
                 begin.strftime("%m-%d-%Y %H:%M"),
             )
         except ValueError as err:
-            _LOGGER.error(f"Check NOAA Tides and Currents: {err.args}")
+            _LOGGER.error("Check NOAA Tides and Currents: %s", err.args)
 
         return (temps, air_temps)
 
@@ -229,11 +229,12 @@ class NOAABuoyDataUpdateCoordinator(DataUpdateCoordinator):
 
         lines = r.text.splitlines()
         if len(lines) < 3:
-            raise UpdateFailed(f"Received fewer than 3 lines of data: {r.text}")
+            _LOGGER.debug("Buoy response text: %s", r.text)
+            raise UpdateFailed(f"Received fewer than 3 lines of data from buoy {self.station_id}")
 
         data = {}
         head = '\n    '.join(lines[0:3])
-        _LOGGER.debug(f"Buoy data head:\n    {head}")
+        _LOGGER.debug("Buoy data head:\n    %s", head)
         fields = lines[0].strip("#").split()
         units = lines[1].strip("#").split()
         values = lines[2].split()  # latest values are at the top of the file
@@ -406,7 +407,7 @@ class NOAATidesAndCurrentsSensor(CoordinatorEntity, SensorEntity):
         tide_text = None
         most_recent = None
         for index, row in data.iterrows():
-            if most_recent == None or (index <= now and index > most_recent):
+            if most_recent is None or (index <= now and index > most_recent):
                 most_recent = index
             elif index > now:
                 self.attr["next_tide_time"] = index.strftime("%-I:%M %p")
