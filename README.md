@@ -36,8 +36,13 @@ This library is a [fork of the core component](https://www.home-assistant.io/int
 2. Click **+ Add Integration**
 3. Search for "NOAA Tides"
 4. Follow the configuration prompts:
-   - **Station ID**: Station ID from [NOAA Tides and Currents](https://tidesandcurrents.noaa.gov/) (for tides/temp) or [NDBC](https://www.ndbc.noaa.gov/) (for buoy)
    - **Station Type**: Choose `tides`, `temp`, or `buoy`
+   - **Entry Method**: Choose how you want to find your station:
+     - **Browse stations by state** (recommended for tides/temp): Select your state, then choose from a list of available stations
+     - **Enter station ID manually**: Directly enter a station ID (required for buoy type)
+   - **State** (if using lookup): Select your state from the dropdown
+   - **Station** (if using lookup): Select your station from the filtered list
+   - **Station ID** (if manual entry): Station ID from [NOAA Tides and Currents](https://tidesandcurrents.noaa.gov/) (for tides/temp) or [NDBC](https://www.ndbc.noaa.gov/) (for buoy). The station will be verified before proceeding.
    - **Name**: Friendly name for the sensor (optional)
 
 **Note**: Time zone and unit system are automatically configured from your Home Assistant system settings. The integration will use local standard/daylight time (`lst_ldt`) for timestamps and will match your Home Assistant unit preferences (metric or imperial).
