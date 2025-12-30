@@ -374,7 +374,7 @@ class NOAATemperatureSensor(NOAATidesAndCurrentsSensor):
 
 class NOAABuoySensor(SensorEntity):
     """Representation of a NOAA Buoy."""
-    FMT_URI="https://www.ndbc.noaa.gov/data/realtime2/%s.txt"
+    FMT_URI = "https://www.ndbc.noaa.gov/data/realtime2/%s.txt"
 
     def __init__(self, hass, name, station_id, timezone, unit_system, entry_id):
         """Initialize the sensor."""
