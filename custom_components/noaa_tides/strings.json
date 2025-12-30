@@ -7,16 +7,12 @@
         "data": {
           "station_id": "Station ID",
           "type": "Station Type",
-          "name": "Name",
-          "time_zone": "Time Zone",
-          "unit_system": "Unit System"
+          "name": "Name"
         },
         "data_description": {
           "station_id": "Station ID from https://tidesandcurrents.noaa.gov/ (for tides/temp) or https://www.ndbc.noaa.gov/ (for buoy)",
           "type": "Type of data to monitor (tides, temp, or buoy)",
-          "name": "Friendly name for this sensor",
-          "time_zone": "Time zone for timestamps",
-          "unit_system": "Measurement units (english or metric)"
+          "name": "Friendly name for this sensor"
         }
       }
     },
@@ -25,19 +21,8 @@
       "unknown": "Unexpected error occurred"
     },
     "abort": {
-      "already_configured": "This station is already configured"
-    }
-  },
-  "options": {
-    "step": {
-      "init": {
-        "title": "NOAA Tides Options",
-        "description": "Update NOAA Tides and Currents sensor options",
-        "data": {
-          "time_zone": "Time Zone",
-          "unit_system": "Unit System"
-        }
-      }
+      "already_configured": "This station is already configured",
+      "no_options": "No configuration options available. Time zone and units are automatically configured from Home Assistant system settings."
     }
   }
 }

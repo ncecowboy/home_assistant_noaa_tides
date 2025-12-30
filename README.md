@@ -39,14 +39,16 @@ This library is a [fork of the core component](https://www.home-assistant.io/int
    - **Station ID**: Station ID from [NOAA Tides and Currents](https://tidesandcurrents.noaa.gov/) (for tides/temp) or [NDBC](https://www.ndbc.noaa.gov/) (for buoy)
    - **Station Type**: Choose `tides`, `temp`, or `buoy`
    - **Name**: Friendly name for the sensor (optional)
-   - **Time Zone**: Time zone for timestamps (default: `lst_ldt`)
-   - **Unit System**: Choose `english` or `metric`
+
+**Note**: Time zone and unit system are automatically configured from your Home Assistant system settings. The integration will use local standard/daylight time (`lst_ldt`) for timestamps and will match your Home Assistant unit preferences (metric or imperial).
 
 You can configure multiple sensors by repeating this process with different station IDs.
 
 ### YAML Configuration (Legacy)
 
 For backward compatibility, YAML configuration is still supported. Add to your `configuration.yaml`:
+
+**Note**: When using UI configuration (recommended), time zone and unit system are automatically derived from Home Assistant system settings. For YAML configuration, you can still manually specify these values if desired, but they will default to system settings if not provided.
 
 ``` yaml
 sensor:

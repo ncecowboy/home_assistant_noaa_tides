@@ -62,19 +62,17 @@ async def async_setup_entry(
     station_id = entry.data[CONF_STATION_ID]
     station_type = entry.data[CONF_STATION_TYPE]
     name = entry.data.get(CONF_NAME, DEFAULT_NAME)
-    timezone = entry.data.get(CONF_TIME_ZONE, DEFAULT_TIMEZONE)
-    unit_system = entry.data.get(CONF_UNIT_SYSTEM)
-
-    # Merge options with data
-    if entry.options:
-        timezone = entry.options.get(CONF_TIME_ZONE, timezone)
-        unit_system = entry.options.get(CONF_UNIT_SYSTEM, unit_system)
-
-    if unit_system is None:
-        if hass.config.units is METRIC_SYSTEM:
-            unit_system = UNIT_SYSTEMS[1]
-        else:
-            unit_system = UNIT_SYSTEMS[0]
+    
+    # Use Home Assistant's system settings for timezone and units
+    # For NOAA API, use "lst_ldt" (local standard/daylight time) as the default timezone
+    # This provides times in the user's local timezone
+    timezone = DEFAULT_TIMEZONE
+    
+    # Determine unit system from Home Assistant config
+    if hass.config.units is METRIC_SYSTEM:
+        unit_system = UNIT_SYSTEMS[1]  # "metric"
+    else:
+        unit_system = UNIT_SYSTEMS[0]  # "english"
 
     if station_type == "tides":
         noaa_sensor = NOAATidesAndCurrentsSensor(
@@ -100,8 +98,12 @@ async def async_setup_platform(hass, config, async_add_entities, discovery_info=
     station_id = config[CONF_STATION_ID]
     station_type = config[CONF_STATION_TYPE]
     name = config.get(CONF_NAME)
-    timezone = config.get(CONF_TIME_ZONE)
+    
+    # For YAML config, default to lst_ldt if not specified
+    # (UI config always uses system settings)
+    timezone = config.get(CONF_TIME_ZONE, DEFAULT_TIMEZONE)
 
+    # For YAML config, fall back to system settings if not specified
     if CONF_UNIT_SYSTEM in config:
         unit_system = config[CONF_UNIT_SYSTEM]
     elif hass.config.units is METRIC_SYSTEM:
