@@ -289,7 +289,7 @@ async def async_setup_platform(hass, config, async_add_entities, discovery_info=
     """Set up the NOAA Tides and Currents sensor (legacy YAML config)."""
     station_id = config[CONF_STATION_ID]
     station_type = config[CONF_STATION_TYPE]
-    name = config.get(CONF_NAME)
+    name = config.get(CONF_NAME, DEFAULT_NAME)
     
     # For YAML config, default to lst_ldt if not specified
     # (UI config always uses system settings)
@@ -303,23 +303,41 @@ async def async_setup_platform(hass, config, async_add_entities, discovery_info=
     else:
         unit_system = UNIT_SYSTEMS[0]
 
+    # Create appropriate coordinator based on station type
     if station_type == "tides":
-        noaa_sensor = NOAATidesAndCurrentsSensor(
-            hass, name, station_id, timezone, unit_system, None
+        coordinator = NOAATidesDataUpdateCoordinator(
+            hass, station_id, timezone, unit_system
         )
-        await hass.async_add_executor_job(noaa_sensor.noaa_coops_update)
     elif station_type == "temp":
-        noaa_sensor = NOAATemperatureSensor(
-            hass, name, station_id, timezone, unit_system, None
+        coordinator = NOAATemperatureDataUpdateCoordinator(
+            hass, station_id, timezone, unit_system
         )
-        await hass.async_add_executor_job(noaa_sensor.noaa_coops_update)
-    else:
-        noaa_sensor = NOAABuoySensor(
-            hass, name, station_id, timezone, unit_system, None
+    else:  # buoy
+        coordinator = NOAABuoyDataUpdateCoordinator(
+            hass, station_id, timezone, unit_system
         )
-        await hass.async_add_executor_job(noaa_sensor.buoy_query)
+    
+    # Fetch initial data
+    await coordinator.async_config_entry_first_refresh()
+    
+    # Create sensor with coordinator
+    # For YAML config, use station_id as entry_id since there's no config entry
+    entry_id = f"yaml_{station_id}_{station_type}"
+    
+    if station_type == "tides":
+        sensor = NOAATidesAndCurrentsSensor(
+            coordinator, entry_id, name, station_id, unit_system
+        )
+    elif station_type == "temp":
+        sensor = NOAATemperatureSensor(
+            coordinator, entry_id, name, station_id, unit_system
+        )
+    else:  # buoy
+        sensor = NOAABuoySensor(
+            coordinator, entry_id, name, station_id, unit_system
+        )
 
-    async_add_entities([noaa_sensor], True)
+    async_add_entities([sensor], True)
 
 class NOAATidesAndCurrentsSensor(CoordinatorEntity, SensorEntity):
     """Representation of a NOAA Tides and Currents sensor."""
