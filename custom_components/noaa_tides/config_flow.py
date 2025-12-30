@@ -50,7 +50,7 @@ async def validate_input(hass: HomeAssistant, data: dict[str, Any]) -> dict[str,
         try:
             await hass.async_add_executor_job(nc.Station, station_id)
         except (ValueError, requests.exceptions.ConnectionError) as err:
-            _LOGGER.error(f"Failed to validate station {station_id}: {err}")
+            _LOGGER.error("Failed to validate station %s: %s", station_id, err)
             raise ValueError("cannot_connect")
     # For buoy type, just ensure the station_id is provided
     # API validation happens at runtime since buoy API can be slow

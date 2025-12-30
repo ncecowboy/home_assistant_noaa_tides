@@ -419,7 +419,7 @@ class NOAATidesAndCurrentsSensor(CoordinatorEntity, SensorEntity):
                 self.attr["current_water_level"] = latest_observation.v
                 self.attr["current_water_level_time"] = latest_time.strftime("%Y-%m-%dT%H:%M")
             except (IndexError, AttributeError) as err:
-                _LOGGER.debug(f"Could not extract current water level data: {err}")
+                _LOGGER.debug("Could not extract current water level data: %s", err)
 
         now = datetime.now()
         tide_text = None
@@ -468,7 +468,7 @@ class NOAATidesAndCurrentsSensor(CoordinatorEntity, SensorEntity):
             try:
                 self._station = nc.Station(self._station_id)
             except requests.exceptions.ConnectionError as err:
-                _LOGGER.error(f"Couldn't create a NOAA station object. Will retry next update. Error: {err}")
+                _LOGGER.error("Couldn't create a NOAA station object. Will retry next update. Error: %s", err)
                 self._station = None
                 return
 
@@ -488,15 +488,15 @@ class NOAATidesAndCurrentsSensor(CoordinatorEntity, SensorEntity):
             )
 
             self.data = df_predictions
-            _LOGGER.debug(f"Data = {self.data}")
+            _LOGGER.debug("Data = %s", self.data)
             _LOGGER.debug(
                 "Recent Tide data queried with start time set to %s",
                 begin_date,
             )
         except ValueError as err:
-            _LOGGER.error(f"Check NOAA Tides and Currents: {err.args}")
+            _LOGGER.error("Check NOAA Tides and Currents: %s", err.args)
         except requests.exceptions.ConnectionError as err:
-            _LOGGER.error(f"Couldn't connect to NOAA Tides and Currents API: {err}")
+            _LOGGER.error("Couldn't connect to NOAA Tides and Currents API: %s", err)
 
         # Fetch current water level data
         try:
@@ -517,10 +517,10 @@ class NOAATidesAndCurrentsSensor(CoordinatorEntity, SensorEntity):
                 current_end.strftime("%Y%m%d %H:%M"),
             )
         except ValueError as err:
-            _LOGGER.debug(f"Could not fetch current water level data: {err.args}")
+            _LOGGER.debug("Could not fetch current water level data: %s", err.args)
             self.current_water_level_data = None
         except requests.exceptions.ConnectionError as err:
-            _LOGGER.debug(f"Couldn't connect to NOAA Tides and Currents API for water level: {err}")
+            _LOGGER.debug("Couldn't connect to NOAA Tides and Currents API for water level: %s", err)
             self.current_water_level_data = None
         return None
 
