@@ -46,11 +46,8 @@ async def validate_input(hass: HomeAssistant, data: dict[str, Any]) -> dict[str,
         except (ValueError, requests.exceptions.ConnectionError) as err:
             _LOGGER.error(f"Failed to validate station {station_id}: {err}")
             raise ValueError("cannot_connect")
-    # For buoy type, we could validate but the API might be slow
-    # Just ensure the station_id is numeric for buoys
-    elif station_type == "buoy":
-        if not station_id.isdigit():
-            raise ValueError("invalid_station_id")
+    # For buoy type, just ensure the station_id is provided
+    # API validation happens at runtime since buoy API can be slow
 
     # Return info that you want to store in the config entry.
     return {"title": data.get(CONF_NAME, f"{DEFAULT_NAME} {station_id}")}
