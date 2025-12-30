@@ -60,7 +60,8 @@ jobs:
 
       - name: Push changes and tag
         run: |
-          git push origin HEAD:${{ github.ref_name }}
+          # Push the commit to the branch that triggered the workflow
+          git push origin HEAD:refs/heads/${{ github.ref_name }}
           git push origin "v${{ github.event.inputs.version }}"
 
       - name: Generate changelog
@@ -86,7 +87,7 @@ jobs:
         run: |
           # Create a zip file of the integration for HACS
           cd noaa_tides
-          zip -r ../noaa_tides.zip . -x "*.pyc" -x "*__pycache__*"
+          zip -r ../noaa_tides.zip . -x "*.pyc" -x "__pycache__/*" -x "*/__pycache__/*"
           cd ..
           ls -lh noaa_tides.zip
 
