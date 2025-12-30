@@ -1,0 +1,62 @@
+name: Validate
+
+on:
+  push:
+    branches:
+      - main
+      - master
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  validate-hacs:
+    runs-on: ubuntu-latest
+    name: Validate HACS
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: HACS validation
+        uses: hacs/action@main
+        with:
+          category: integration
+
+  validate-hassfest:
+    runs-on: ubuntu-latest
+    name: Validate with hassfest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Hassfest validation
+        uses: home-assistant/actions/hassfest@master
+
+  validate-manifest:
+    runs-on: ubuntu-latest
+    name: Validate manifest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Check manifest.json exists
+        run: |
+          if [ ! -f "noaa_tides/manifest.json" ]; then
+            echo "Error: manifest.json not found"
+            exit 1
+          fi
+
+      - name: Validate manifest.json format
+        run: |
+          python -m json.tool noaa_tides/manifest.json > /dev/null
+          echo "manifest.json is valid JSON"
+
+      - name: Check required manifest fields
+        run: |
+          REQUIRED_FIELDS="domain name version codeowners documentation requirements"
+          for field in $REQUIRED_FIELDS; do
+            if ! grep -q "\"$field\"" noaa_tides/manifest.json; then
+              echo "Error: Required field '$field' not found in manifest.json"
+              exit 1
+            fi
+          done
+          echo "All required fields present in manifest.json"

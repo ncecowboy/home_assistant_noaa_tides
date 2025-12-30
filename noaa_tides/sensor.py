@@ -10,6 +10,7 @@ import noaa_coops as nc
 import voluptuous as vol
 
 from homeassistant.components.sensor import PLATFORM_SCHEMA
+from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import (
     ATTR_ATTRIBUTION,
     CONF_NAME,
@@ -17,12 +18,16 @@ from homeassistant.const import (
     CONF_UNIT_SYSTEM,
     UnitOfTemperature,
 )
+from homeassistant.core import HomeAssistant
 import homeassistant.helpers.config_validation as cv
 from homeassistant.helpers.entity import Entity
+from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.util.unit_system import METRIC_SYSTEM
 from homeassistant.components.sensor import SensorDeviceClass
 
 _LOGGER = logging.getLogger(__name__)
+
+DOMAIN = "noaa_tides"
 
 CONF_STATION_ID = "station_id"
 CONF_STATION_TYPE = "type"
@@ -47,6 +52,46 @@ PLATFORM_SCHEMA = PLATFORM_SCHEMA.extend(
 )
 
 ghass = None
+
+
+async def async_setup_entry(
+    hass: HomeAssistant,
+    entry: ConfigEntry,
+    async_add_entities: AddEntitiesCallback,
+) -> None:
+    """Set up NOAA Tides sensor from a config entry."""
+    global ghass
+    ghass = hass
+
+    station_id = entry.data[CONF_STATION_ID]
+    station_type = entry.data[CONF_STATION_TYPE]
+    name = entry.data.get(CONF_NAME, DEFAULT_NAME)
+    timezone = entry.data.get(CONF_TIME_ZONE, DEFAULT_TIMEZONE)
+    unit_system = entry.data.get(CONF_UNIT_SYSTEM)
+
+    # Merge options with data
+    if entry.options:
+        timezone = entry.options.get(CONF_TIME_ZONE, timezone)
+        unit_system = entry.options.get(CONF_UNIT_SYSTEM, unit_system)
+
+    if unit_system is None:
+        if hass.config.units is METRIC_SYSTEM:
+            unit_system = UNIT_SYSTEMS[1]
+        else:
+            unit_system = UNIT_SYSTEMS[0]
+
+    if station_type == "tides":
+        noaa_sensor = NOAATidesAndCurrentsSensor(name, station_id, timezone, unit_system)
+        await hass.async_add_executor_job(noaa_sensor.noaa_coops_update)
+    elif station_type == "temp":
+        noaa_sensor = NOAATemperatureSensor(name, station_id, timezone, unit_system)
+        await hass.async_add_executor_job(noaa_sensor.noaa_coops_update)
+    else:
+        noaa_sensor = NOAABuoySensor(name, station_id, timezone, unit_system)
+        await hass.async_add_executor_job(noaa_sensor.buoy_query)
+
+    async_add_entities([noaa_sensor], True)
+
 
 async def async_setup_platform(hass, config, async_add_entities, discovery_info=None):
     """Set up the NOAA Tides and Currents sensor."""
