@@ -2,13 +2,51 @@
 
 This library is a [fork of the core component](https://www.home-assistant.io/integrations/noaa_tides/) which adds some additional features and migrates the backend from the now-defunct [py_noaa](https://github.com/GClunies/py_noaa) to the superseding [noaa_coops](https://github.com/GClunies/noaa_coops).
 
+## Features
+
+- **UI Configuration**: Easy setup through Home Assistant UI (Config Flow)
+- **YAML Configuration**: Still supported for backward compatibility
+- **HACS Compatible**: Install and manage through HACS
+- **Automated Releases**: Version management through GitHub Actions
+- Multiple sensor types: Tides, Water Temperature, and Buoy data
+
 ## Installation
+
+### HACS (Recommended)
+
+1. Open HACS in Home Assistant
+2. Go to "Integrations"
+3. Click the three dots in the top right corner
+4. Select "Custom repositories"
+5. Add `https://github.com/ncecowboy/home_assistant_noaa_tides` as an Integration
+6. Click "Install"
+7. Restart Home Assistant
+
+### Manual Installation
 
 1. Clone the repository.
 2. Copy the `noaa_tides` directory into `<home assistant directory>/custom_components/`
-3. Configure a sensor in configuration.yaml
+3. Restart Home Assistant
 
-## Sample configuration
+## Configuration
+
+### UI Configuration (Recommended)
+
+1. Go to **Settings** > **Devices & Services**
+2. Click **+ Add Integration**
+3. Search for "NOAA Tides"
+4. Follow the configuration prompts:
+   - **Station ID**: Station ID from [NOAA Tides and Currents](https://tidesandcurrents.noaa.gov/) (for tides/temp) or [NDBC](https://www.ndbc.noaa.gov/) (for buoy)
+   - **Station Type**: Choose `tides`, `temp`, or `buoy`
+   - **Name**: Friendly name for the sensor (optional)
+   - **Time Zone**: Time zone for timestamps (default: `lst_ldt`)
+   - **Unit System**: Choose `english` or `metric`
+
+You can configure multiple sensors by repeating this process with different station IDs.
+
+### YAML Configuration (Legacy)
+
+For backward compatibility, YAML configuration is still supported. Add to your `configuration.yaml`:
 
 ``` yaml
 sensor:
@@ -33,30 +71,25 @@ sensor:
 
 Different stations support different features (products/datums), so use the [station finder](https://tidesandcurrents.noaa.gov/) to select the right station for `tides` vs `temp` types.
 
+## Usage Examples
+
+### Template Sensors
 For complex lovelace widgets, it is suggested to use the [template platform](https://www.home-assistant.io/integrations/template/).
 
-Sample template sensor:
-``` yaml
-        next_tide:
-            friendly_name: "Next tide"
-            entity_id: sensor.tides
-            value_template: "{{ state_attr('sensor.tides', 'next_tide_type') }} tide at {{ state_attr('sensor.tides', 'next_tide_time') }}"
-            icon_template: "{% if is_state_attr('sensor.tides', 'next_tide_type', 'High') %}mdi:waves{% else %}mdi:wave{% endif %}"
-        last_tide:
-            friendly_name: "Last tide"
-            entity_id: sensor.tides
-            value_template: "{{ state_attr('sensor.tides', 'last_tide_type') }} tide at {{ state_attr('sensor.tides', 'last_tide_time') }}"
-            icon_template: "{% if is_state_attr('sensor.tides', 'last_tide_type', 'High') %}mdi:waves{% else %}mdi:wave{% endif %}"
-        water_level:
-            friendly_name: "Water level"
-            entity_id: sensor.internet_time
-            value_template: "{{ state_attr('sensor.tides', 'tide_factor') }}"
-            unit_of_measurement: '%'
-        beach_air_temp:
-            friendly_name: "Air temperature"
-            entity_id: sensor.water_temp
-            value_template: "{{ state_attr('sensor.water_temp', 'air_temperature') }}"
-
+```yaml
+template:
+  - sensor:
+      - name: "Next tide"
+        state: "{{ state_attr('sensor.tides', 'next_tide_type') }} tide at {{ state_attr('sensor.tides', 'next_tide_time') }}"
+        icon: "{% if is_state_attr('sensor.tides', 'next_tide_type', 'High') %}mdi:waves{% else %}mdi:wave{% endif %}"
+      - name: "Last tide"
+        state: "{{ state_attr('sensor.tides', 'last_tide_type') }} tide at {{ state_attr('sensor.tides', 'last_tide_time') }}"
+        icon: "{% if is_state_attr('sensor.tides', 'last_tide_type', 'High') %}mdi:waves{% else %}mdi:wave{% endif %}"
+      - name: "Water level"
+        state: "{{ state_attr('sensor.tides', 'tide_factor') }}"
+        unit_of_measurement: '%'
+      - name: "Beach air temp"
+        state: "{{ state_attr('sensor.water_temp', 'air_temperature') }}"
 ```
 
 Note that the tide curve requires `sensor.internet_time` to be updated correctly. Use the `time_date` sensor platform like this:

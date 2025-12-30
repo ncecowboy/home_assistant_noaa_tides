@@ -1,4 +1,6 @@
 """Support for the NOAA Tides and Currents API."""
+from __future__ import annotations
+
 from datetime import datetime, timedelta
 from datetime import timezone as tz
 import logging
@@ -9,7 +11,8 @@ from typing import Optional
 import noaa_coops as nc
 import voluptuous as vol
 
-from homeassistant.components.sensor import PLATFORM_SCHEMA
+from homeassistant.components.sensor import PLATFORM_SCHEMA, SensorEntity
+from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import (
     ATTR_ATTRIBUTION,
     CONF_NAME,
@@ -17,12 +20,15 @@ from homeassistant.const import (
     CONF_UNIT_SYSTEM,
     UnitOfTemperature,
 )
+from homeassistant.core import HomeAssistant
 import homeassistant.helpers.config_validation as cv
-from homeassistant.helpers.entity import Entity
+from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.util.unit_system import METRIC_SYSTEM
 from homeassistant.components.sensor import SensorDeviceClass
 
 _LOGGER = logging.getLogger(__name__)
+
+DOMAIN = "noaa_tides"
 
 CONF_STATION_ID = "station_id"
 CONF_STATION_TYPE = "type"
@@ -46,12 +52,51 @@ PLATFORM_SCHEMA = PLATFORM_SCHEMA.extend(
     }
 )
 
-ghass = None
+
+async def async_setup_entry(
+    hass: HomeAssistant,
+    entry: ConfigEntry,
+    async_add_entities: AddEntitiesCallback,
+) -> None:
+    """Set up NOAA Tides sensor from a config entry."""
+    station_id = entry.data[CONF_STATION_ID]
+    station_type = entry.data[CONF_STATION_TYPE]
+    name = entry.data.get(CONF_NAME, DEFAULT_NAME)
+    timezone = entry.data.get(CONF_TIME_ZONE, DEFAULT_TIMEZONE)
+    unit_system = entry.data.get(CONF_UNIT_SYSTEM)
+
+    # Merge options with data
+    if entry.options:
+        timezone = entry.options.get(CONF_TIME_ZONE, timezone)
+        unit_system = entry.options.get(CONF_UNIT_SYSTEM, unit_system)
+
+    if unit_system is None:
+        if hass.config.units is METRIC_SYSTEM:
+            unit_system = UNIT_SYSTEMS[1]
+        else:
+            unit_system = UNIT_SYSTEMS[0]
+
+    if station_type == "tides":
+        noaa_sensor = NOAATidesAndCurrentsSensor(
+            hass, name, station_id, timezone, unit_system, entry.entry_id
+        )
+        await hass.async_add_executor_job(noaa_sensor.noaa_coops_update)
+    elif station_type == "temp":
+        noaa_sensor = NOAATemperatureSensor(
+            hass, name, station_id, timezone, unit_system, entry.entry_id
+        )
+        await hass.async_add_executor_job(noaa_sensor.noaa_coops_update)
+    else:
+        noaa_sensor = NOAABuoySensor(
+            hass, name, station_id, timezone, unit_system, entry.entry_id
+        )
+        await hass.async_add_executor_job(noaa_sensor.buoy_query)
+
+    async_add_entities([noaa_sensor], True)
+
 
 async def async_setup_platform(hass, config, async_add_entities, discovery_info=None):
-    """Set up the NOAA Tides and Currents sensor."""
-    global ghass
-    ghass = hass
+    """Set up the NOAA Tides and Currents sensor (legacy YAML config)."""
     station_id = config[CONF_STATION_ID]
     station_type = config[CONF_STATION_TYPE]
     name = config.get(CONF_NAME)
@@ -65,26 +110,34 @@ async def async_setup_platform(hass, config, async_add_entities, discovery_info=
         unit_system = UNIT_SYSTEMS[0]
 
     if station_type == "tides":
-        noaa_sensor = NOAATidesAndCurrentsSensor(name, station_id, timezone, unit_system)
+        noaa_sensor = NOAATidesAndCurrentsSensor(
+            hass, name, station_id, timezone, unit_system, None
+        )
         await hass.async_add_executor_job(noaa_sensor.noaa_coops_update)
     elif station_type == "temp":
-        noaa_sensor = NOAATemperatureSensor(name, station_id, timezone, unit_system)
+        noaa_sensor = NOAATemperatureSensor(
+            hass, name, station_id, timezone, unit_system, None
+        )
         await hass.async_add_executor_job(noaa_sensor.noaa_coops_update)
     else:
-        noaa_sensor = NOAABuoySensor(name, station_id, timezone, unit_system)
+        noaa_sensor = NOAABuoySensor(
+            hass, name, station_id, timezone, unit_system, None
+        )
         await hass.async_add_executor_job(noaa_sensor.buoy_query)
 
     async_add_entities([noaa_sensor], True)
 
-class NOAATidesAndCurrentsSensor(Entity):
+class NOAATidesAndCurrentsSensor(SensorEntity):
     """Representation of a NOAA Tides and Currents sensor."""
 
-    def __init__(self, name, station_id, timezone, unit_system):
+    def __init__(self, hass, name, station_id, timezone, unit_system, entry_id):
         """Initialize the sensor."""
+        self._hass = hass
         self._name = name
         self._station_id = station_id
         self._timezone = timezone
         self._unit_system = unit_system
+        self._entry_id = entry_id
         self._station = None
         self.data = None
         self.attr = None
@@ -93,6 +146,13 @@ class NOAATidesAndCurrentsSensor(Entity):
     def name(self):
         """Return the name of the sensor."""
         return self._name
+
+    @property
+    def unique_id(self):
+        """Return a unique ID for this sensor."""
+        if self._entry_id:
+            return f"{self._entry_id}_tides"
+        return f"{self._station_id}_tides"
 
     def update_tide_factor_from_attr(self):
         _LOGGER.debug("Updating sine fit for tide factor")
@@ -171,7 +231,7 @@ class NOAATidesAndCurrentsSensor(Entity):
                 return
 
         begin = datetime.now() - timedelta(hours=24)
-        begin_date=begin.strftime("%Y%m%d %H:%M")
+        begin_date = begin.strftime("%Y%m%d %H:%M")
         end = begin + timedelta(hours=48)
         end_date = end.strftime("%Y%m%d %H:%M")
         try:
@@ -194,22 +254,29 @@ class NOAATidesAndCurrentsSensor(Entity):
         except ValueError as err:
             _LOGGER.error(f"Check NOAA Tides and Currents: {err.args}")
         except requests.exceptions.ConnectionError as err:
-            _LOGGER.error(f"Couldn't connect to NOAA Ties and Currents API: {err}")
+            _LOGGER.error(f"Couldn't connect to NOAA Tides and Currents API: {err}")
         return None
 
     async def async_update(self):
         """Get the latest data from NOAA Tides and Currents API."""
-        if not self.data is None:
+        if self.data is not None:
             # If there are data for a tide > 3 hours away, don't bother querying the NOAA
             min_ts = datetime.now() + timedelta(hours=3)
             for index, row in self.data.iterrows():
                 if index > min_ts:
                     _LOGGER.debug("Data exist with a tide in at most 3 hours, not querying NOAA.")
                     return
-        ghass.async_add_executor_job(self.noaa_coops_update)
+        self._hass.async_add_executor_job(self.noaa_coops_update)
 
 class NOAATemperatureSensor(NOAATidesAndCurrentsSensor):
     """Representation of a NOAA Temperature sensor."""
+
+    @property
+    def unique_id(self):
+        """Return a unique ID for this sensor."""
+        if self._entry_id:
+            return f"{self._entry_id}_temp"
+        return f"{self._station_id}_temp"
 
     @property
     def extra_state_attributes(self):
@@ -276,7 +343,7 @@ class NOAATemperatureSensor(NOAATidesAndCurrentsSensor):
         except ValueError as err:
             _LOGGER.error(f"Check NOAA Tides and Currents: {err.args}")
         except requests.exceptions.ConnectionError as err:
-            _LOGGER.error(f"Couldn't connect to NOAA Ties and Currents API: {err}")
+            _LOGGER.error(f"Couldn't connect to NOAA Tides and Currents API: {err}")
 
         try:
             air_temps = stn.get_data(
@@ -293,7 +360,7 @@ class NOAATemperatureSensor(NOAATidesAndCurrentsSensor):
         except ValueError as err:
             _LOGGER.error(f"Check NOAA Tides and Currents: {err.args}")
         except requests.exceptions.ConnectionError as err:
-            _LOGGER.error(f"Couldn't connect to NOAA Ties and Currents API: {err}")
+            _LOGGER.error(f"Couldn't connect to NOAA Tides and Currents API: {err}")
         if temps is None and air_temps is None:
             self.data = None
         else:
@@ -302,19 +369,22 @@ class NOAATemperatureSensor(NOAATidesAndCurrentsSensor):
 
     async def async_update(self):
         """Get the latest data from NOAA Tides and Currents API."""
-        ghass.async_add_executor_job(self.noaa_coops_update)
+        self._hass.async_add_executor_job(self.noaa_coops_update)
 
 
-class NOAABuoySensor(Entity):
+class NOAABuoySensor(SensorEntity):
     """Representation of a NOAA Buoy."""
-    FMT_URI="https://www.ndbc.noaa.gov/data/realtime2/%s.txt"
+    FMT_URI = "https://www.ndbc.noaa.gov/data/realtime2/%s.txt"
 
-    def __init__(self, name, station_id, timezone, unit_system):
+    def __init__(self, hass, name, station_id, timezone, unit_system, entry_id):
         """Initialize the sensor."""
+        self._hass = hass
         self._name = name
+        self._station_id = station_id
         self._station_url = self.FMT_URI % station_id
         self._timezone = timezone
         self._unit_system = unit_system
+        self._entry_id = entry_id
         self.data = None
         self.attr = None
 
@@ -322,6 +392,13 @@ class NOAABuoySensor(Entity):
     def name(self):
         """Return the name of the sensor."""
         return self._name
+
+    @property
+    def unique_id(self):
+        """Return a unique ID for this sensor."""
+        if self._entry_id:
+            return f"{self._entry_id}_buoy"
+        return f"{self._station_id}_buoy"
 
     @property
     def device_class(self) -> Optional[str]:
@@ -405,4 +482,4 @@ class NOAABuoySensor(Entity):
 
     async def async_update(self):
         """Get the latest data from NOAA Buoy API."""
-        ghass.async_add_executor_job(self.buoy_query)
+        self._hass.async_add_executor_job(self.buoy_query)

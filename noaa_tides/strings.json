@@ -1,0 +1,43 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Set up NOAA Tides and Currents",
+        "description": "Configure a NOAA Tides and Currents sensor",
+        "data": {
+          "station_id": "Station ID",
+          "type": "Station Type",
+          "name": "Name",
+          "time_zone": "Time Zone",
+          "unit_system": "Unit System"
+        },
+        "data_description": {
+          "station_id": "Station ID from https://tidesandcurrents.noaa.gov/ (for tides/temp) or https://www.ndbc.noaa.gov/ (for buoy)",
+          "type": "Type of data to monitor (tides, temp, or buoy)",
+          "name": "Friendly name for this sensor",
+          "time_zone": "Time zone for timestamps",
+          "unit_system": "Measurement units (english or metric)"
+        }
+      }
+    },
+    "error": {
+      "cannot_connect": "Failed to connect to NOAA station. Please verify the station ID and type are correct.",
+      "unknown": "Unexpected error occurred"
+    },
+    "abort": {
+      "already_configured": "This station is already configured"
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "NOAA Tides Options",
+        "description": "Update NOAA Tides and Currents sensor options",
+        "data": {
+          "time_zone": "Time Zone",
+          "unit_system": "Unit System"
+        }
+      }
+    }
+  }
+}
