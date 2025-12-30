@@ -4,7 +4,7 @@ from __future__ import annotations
 import logging
 
 from homeassistant.config_entries import ConfigEntry
-from homeassistant.const import CONF_NAME, CONF_UNIT_SYSTEM, Platform
+from homeassistant.const import CONF_NAME, Platform
 from homeassistant.core import HomeAssistant
 
 _LOGGER = logging.getLogger(__name__)
@@ -14,7 +14,6 @@ PLATFORMS = [Platform.SENSOR]
 
 CONF_STATION_ID = "station_id"
 CONF_STATION_TYPE = "type"
-CONF_TIME_ZONE = "time_zone"
 
 
 async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:

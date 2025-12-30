@@ -16,8 +16,6 @@ from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import (
     ATTR_ATTRIBUTION,
     CONF_NAME,
-    CONF_TIME_ZONE,
-    CONF_UNIT_SYSTEM,
     UnitOfTemperature,
 )
 from homeassistant.core import HomeAssistant
@@ -32,6 +30,8 @@ DOMAIN = "noaa_tides"
 
 CONF_STATION_ID = "station_id"
 CONF_STATION_TYPE = "type"
+CONF_TIME_ZONE = "time_zone"  # For backward compatibility with YAML config
+CONF_UNIT_SYSTEM = "unit_system"  # For backward compatibility with YAML config
 
 DEFAULT_ATTRIBUTION = "Data provided by NOAA"
 BUOY_ATTRIBUTION = "Data provided by NDBC"
@@ -62,19 +62,17 @@ async def async_setup_entry(
     station_id = entry.data[CONF_STATION_ID]
     station_type = entry.data[CONF_STATION_TYPE]
     name = entry.data.get(CONF_NAME, DEFAULT_NAME)
-    timezone = entry.data.get(CONF_TIME_ZONE, DEFAULT_TIMEZONE)
-    unit_system = entry.data.get(CONF_UNIT_SYSTEM)
-
-    # Merge options with data
-    if entry.options:
-        timezone = entry.options.get(CONF_TIME_ZONE, timezone)
-        unit_system = entry.options.get(CONF_UNIT_SYSTEM, unit_system)
-
-    if unit_system is None:
-        if hass.config.units is METRIC_SYSTEM:
-            unit_system = UNIT_SYSTEMS[1]
-        else:
-            unit_system = UNIT_SYSTEMS[0]
+    
+    # Use Home Assistant's system settings for timezone and units
+    # For NOAA API, use "lst_ldt" (local standard/daylight time) as the default timezone
+    # This provides times in the user's local timezone
+    timezone = DEFAULT_TIMEZONE
+    
+    # Determine unit system from Home Assistant config
+    if hass.config.units is METRIC_SYSTEM:
+        unit_system = UNIT_SYSTEMS[1]  # "metric"
+    else:
+        unit_system = UNIT_SYSTEMS[0]  # "english"
 
     if station_type == "tides":
         noaa_sensor = NOAATidesAndCurrentsSensor(
