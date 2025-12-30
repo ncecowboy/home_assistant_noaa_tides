@@ -142,6 +142,7 @@ class NOAATidesAndCurrentsSensor(SensorEntity):
         self._entry_id = entry_id
         self._station = None
         self.data = None
+        self.current_water_level_data = None
         self.attr = None
 
     @property
@@ -181,6 +182,17 @@ class NOAATidesAndCurrentsSensor(SensorEntity):
             self.attr = {ATTR_ATTRIBUTION: DEFAULT_ATTRIBUTION}
         if self.data is None:
             return self.attr
+
+        # Add current water level data if available
+        if self.current_water_level_data is not None and not self.current_water_level_data.empty:
+            try:
+                # Get the most recent water level observation
+                latest_observation = self.current_water_level_data.iloc[-1]
+                latest_time = self.current_water_level_data.index[-1]
+                self.attr["current_water_level"] = latest_observation.v
+                self.attr["current_water_level_time"] = latest_time.strftime("%Y-%m-%dT%H:%M")
+            except (IndexError, AttributeError) as err:
+                _LOGGER.debug(f"Could not extract current water level data: {err}")
 
         now = datetime.now()
         tide_text = None
@@ -257,6 +269,31 @@ class NOAATidesAndCurrentsSensor(SensorEntity):
             _LOGGER.error(f"Check NOAA Tides and Currents: {err.args}")
         except requests.exceptions.ConnectionError as err:
             _LOGGER.error(f"Couldn't connect to NOAA Tides and Currents API: {err}")
+
+        # Fetch current water level data
+        try:
+            current_end = datetime.now()
+            current_begin = current_end - timedelta(hours=1)
+            df_water_level = self._station.get_data(
+                begin_date=current_begin.strftime("%Y%m%d %H:%M"),
+                end_date=current_end.strftime("%Y%m%d %H:%M"),
+                product="water_level",
+                datum="MLLW",
+                units=self._unit_system,
+                time_zone=self._timezone,
+            )
+            self.current_water_level_data = df_water_level
+            _LOGGER.debug(f"Current water level data = {self.current_water_level_data}")
+            _LOGGER.debug(
+                "Current water level data queried with end time set to %s",
+                current_end.strftime("%Y%m%d %H:%M"),
+            )
+        except ValueError as err:
+            _LOGGER.debug(f"Could not fetch current water level data: {err.args}")
+            self.current_water_level_data = None
+        except requests.exceptions.ConnectionError as err:
+            _LOGGER.debug(f"Couldn't connect to NOAA Tides and Currents API for water level: {err}")
+            self.current_water_level_data = None
         return None
 
     async def async_update(self):
