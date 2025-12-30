@@ -16,6 +16,8 @@ from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import (
     ATTR_ATTRIBUTION,
     CONF_NAME,
+    CONF_TIME_ZONE,
+    CONF_UNIT_SYSTEM,
     UnitOfTemperature,
 )
 from homeassistant.core import HomeAssistant
@@ -30,8 +32,6 @@ DOMAIN = "noaa_tides"
 
 CONF_STATION_ID = "station_id"
 CONF_STATION_TYPE = "type"
-CONF_TIME_ZONE = "time_zone"  # For backward compatibility with YAML config
-CONF_UNIT_SYSTEM = "unit_system"  # For backward compatibility with YAML config
 
 DEFAULT_ATTRIBUTION = "Data provided by NOAA"
 BUOY_ATTRIBUTION = "Data provided by NDBC"
