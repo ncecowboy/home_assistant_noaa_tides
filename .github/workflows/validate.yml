@@ -46,21 +46,21 @@ jobs:
 
       - name: Check manifest.json exists
         run: |
-          if [ ! -f "noaa_tides/manifest.json" ]; then
+          if [ ! -f "custom_components/noaa_tides/manifest.json" ]; then
             echo "Error: manifest.json not found"
             exit 1
           fi
 
       - name: Validate manifest.json format
         run: |
-          python -m json.tool noaa_tides/manifest.json > /dev/null
+          python -m json.tool custom_components/noaa_tides/manifest.json > /dev/null
           echo "manifest.json is valid JSON"
 
       - name: Check required manifest fields
         run: |
           REQUIRED_FIELDS="domain name version codeowners documentation requirements"
           for field in $REQUIRED_FIELDS; do
-            if ! grep -q "\"$field\"" noaa_tides/manifest.json; then
+            if ! grep -q "\"$field\"" custom_components/noaa_tides/manifest.json; then
               echo "Error: Required field '$field' not found in manifest.json"
               exit 1
             fi
