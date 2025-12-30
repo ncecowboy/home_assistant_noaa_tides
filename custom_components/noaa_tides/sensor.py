@@ -38,6 +38,9 @@ BUOY_ATTRIBUTION = "Data provided by NDBC"
 DEFAULT_NAME = "NOAA Tides"
 DEFAULT_TIMEZONE = "lst_ldt"
 
+# Time window for fetching current water level observations (in hours)
+WATER_LEVEL_LOOKBACK_HOURS = 1
+
 TIMEZONES = ["gmt", "lst", "lst_ldt"]
 UNIT_SYSTEMS = ["english", "metric"]
 STATION_TYPES = ["tides", "temp", "buoy"]
@@ -189,6 +192,7 @@ class NOAATidesAndCurrentsSensor(SensorEntity):
                 # Get the most recent water level observation
                 latest_observation = self.current_water_level_data.iloc[-1]
                 latest_time = self.current_water_level_data.index[-1]
+                # 'v' is the water level value column from NOAA API
                 self.attr["current_water_level"] = latest_observation.v
                 self.attr["current_water_level_time"] = latest_time.strftime("%Y-%m-%dT%H:%M")
             except (IndexError, AttributeError) as err:
@@ -273,7 +277,7 @@ class NOAATidesAndCurrentsSensor(SensorEntity):
         # Fetch current water level data
         try:
             current_end = datetime.now()
-            current_begin = current_end - timedelta(hours=1)
+            current_begin = current_end - timedelta(hours=WATER_LEVEL_LOOKBACK_HOURS)
             df_water_level = self._station.get_data(
                 begin_date=current_begin.strftime("%Y%m%d %H:%M"),
                 end_date=current_end.strftime("%Y%m%d %H:%M"),
@@ -283,9 +287,9 @@ class NOAATidesAndCurrentsSensor(SensorEntity):
                 time_zone=self._timezone,
             )
             self.current_water_level_data = df_water_level
-            _LOGGER.debug(f"Current water level data = {self.current_water_level_data}")
             _LOGGER.debug(
-                "Current water level data queried with end time set to %s",
+                "Current water level data retrieved: %d records, latest at %s",
+                len(df_water_level) if df_water_level is not None else 0,
                 current_end.strftime("%Y%m%d %H:%M"),
             )
         except ValueError as err:
