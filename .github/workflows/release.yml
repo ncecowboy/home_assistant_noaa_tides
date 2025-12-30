@@ -54,15 +54,13 @@ jobs:
           git add noaa_tides/manifest.json
           git commit -m "Bump version to ${{ github.event.inputs.version }}"
 
-      - name: Push changes
-        uses: ad-m/github-push-action@master
-        with:
-          github_token: ${{ secrets.GITHUB_TOKEN }}
-          branch: ${{ github.ref }}
-
-      - name: Create and push tag
+      - name: Create tag
         run: |
           git tag -a "v${{ github.event.inputs.version }}" -m "Release v${{ github.event.inputs.version }}"
+
+      - name: Push changes and tag
+        run: |
+          git push origin HEAD:${{ github.ref_name }}
           git push origin "v${{ github.event.inputs.version }}"
 
       - name: Generate changelog
@@ -84,12 +82,21 @@ jobs:
           echo "$CHANGELOG" > CHANGELOG.md
           cat CHANGELOG.md
 
+      - name: Create release archive
+        run: |
+          # Create a zip file of the integration for HACS
+          cd noaa_tides
+          zip -r ../noaa_tides.zip . -x "*.pyc" -x "*__pycache__*"
+          cd ..
+          ls -lh noaa_tides.zip
+
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v1
         with:
           tag_name: v${{ github.event.inputs.version }}
           name: Release v${{ github.event.inputs.version }}
           body_path: CHANGELOG.md
+          files: noaa_tides.zip
           draft: false
           prerelease: false
         env:
