@@ -5,24 +5,67 @@
         "title": "Set up NOAA Tides and Currents",
         "description": "Configure a NOAA Tides and Currents sensor",
         "data": {
-          "station_id": "Station ID",
           "type": "Station Type",
-          "name": "Name"
+          "entry_method": "Entry Method"
         },
         "data_description": {
-          "station_id": "Station ID from https://tidesandcurrents.noaa.gov/ (for tides/temp) or https://www.ndbc.noaa.gov/ (for buoy)",
           "type": "Type of data to monitor (tides, temp, or buoy)",
-          "name": "Friendly name for this sensor"
+          "entry_method": "Choose 'lookup' to browse stations by state or 'manual' to enter station ID directly"
+        }
+      },
+      "state": {
+        "title": "Select State",
+        "description": "Choose the state where your station is located",
+        "data": {
+          "state": "State"
+        }
+      },
+      "station": {
+        "title": "Select Station",
+        "description": "Choose a station from the selected state",
+        "data": {
+          "station_id": "Station"
+        }
+      },
+      "manual": {
+        "title": "Enter Station ID",
+        "description": "Enter station ID from https://tidesandcurrents.noaa.gov/ (for tides/temp) or https://www.ndbc.noaa.gov/ (for buoy). The station will be verified before proceeding.",
+        "data": {
+          "station_id": "Station ID"
+        }
+      },
+      "name": {
+        "title": "Name Your Sensor",
+        "description": "Provide a friendly name for this sensor (optional)",
+        "data": {
+          "name": "Name"
         }
       }
     },
     "error": {
       "cannot_connect": "Failed to connect to NOAA station. Please verify the station ID and type are correct.",
+      "invalid_station_id": "Station ID could not be verified. Please check the ID and try again.",
+      "no_stations_in_state": "No stations found in the selected state. Please try manual entry.",
       "unknown": "Unexpected error occurred"
     },
     "abort": {
       "already_configured": "This station is already configured",
       "no_options": "No configuration options available. Time zone and units are automatically configured from Home Assistant system settings."
+    }
+  },
+  "selector": {
+    "type": {
+      "options": {
+        "tides": "Tides",
+        "temp": "Water Temperature",
+        "buoy": "Buoy"
+      }
+    },
+    "entry_method": {
+      "options": {
+        "lookup": "Browse stations by state",
+        "manual": "Enter station ID manually"
+      }
     }
   }
 }
