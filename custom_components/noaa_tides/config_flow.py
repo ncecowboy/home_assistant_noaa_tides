@@ -180,8 +180,8 @@ class NOAATidesConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             is_valid, message = await verify_station_id(self.hass, station_id, station_type)
             
             if not is_valid:
-                errors["station_id"] = "invalid_station_id"
-                errors["base"] = message
+                errors["base"] = "invalid_station_id"
+                _LOGGER.warning("Station validation failed: %s", message)
             else:
                 self.config_data[CONF_STATION_ID] = station_id
                 return await self.async_step_name()

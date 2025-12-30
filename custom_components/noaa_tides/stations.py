@@ -45,10 +45,10 @@ async def fetch_noaa_stations(hass, station_type: str = "tidepredictions") -> li
             _station_cache[cache_key] = stations
             return stations
         else:
-            _LOGGER.error(f"Failed to fetch NOAA stations: HTTP {response.status_code}")
+            _LOGGER.error("Failed to fetch NOAA stations: HTTP %s", response.status_code)
             return []
     except Exception as err:
-        _LOGGER.error(f"Error fetching NOAA stations: {err}")
+        _LOGGER.error("Error fetching NOAA stations: %s", err)
         return []
 
 
@@ -114,10 +114,11 @@ async def verify_station_id(hass, station_id: str, station_type: str) -> tuple[b
     if station_type == "buoy":
         # For buoy, we'll do a simpler validation
         # NDBC buoy IDs are typically 5 characters (alphanumeric)
-        if len(station_id) >= 5:
+        # Common formats: 5-digit numbers (e.g., 44017) or 5-char alphanumeric (e.g., 41001)
+        if len(station_id) >= 5 and station_id.isalnum():
             return True, f"Buoy {station_id}"
         else:
-            return False, "Invalid buoy ID format"
+            return False, "Invalid buoy ID format (must be at least 5 alphanumeric characters)"
     
     # For NOAA stations (tides/temp), fetch and check
     try:
@@ -139,5 +140,5 @@ async def verify_station_id(hass, station_id: str, station_type: str) -> tuple[b
         
         return False, f"Station ID {station_id} not found"
     except Exception as err:
-        _LOGGER.error(f"Error verifying station: {err}")
+        _LOGGER.error("Error verifying station: %s", err)
         return False, str(err)
