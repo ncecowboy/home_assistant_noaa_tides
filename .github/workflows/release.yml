@@ -36,33 +36,32 @@ jobs:
       - name: Update version in manifest.json
         run: |
           VERSION="${{ github.event.inputs.version }}"
-          sed -i "s/\"version\": \".*\"/\"version\": \"$VERSION\"/" noaa_tides/manifest.json
+          sed -i "s/\"version\": \".*\"/\"version\": \"$VERSION\"/" custom_components/noaa_tides/manifest.json
           
           # Verify the change was made
-          if ! grep -q "\"version\": \"$VERSION\"" noaa_tides/manifest.json; then
+          if ! grep -q "\"version\": \"$VERSION\"" custom_components/noaa_tides/manifest.json; then
             echo "Error: Failed to update version in manifest.json"
             exit 1
           fi
           
           echo "Updated manifest.json to version $VERSION"
-          cat noaa_tides/manifest.json
+          cat custom_components/noaa_tides/manifest.json
 
       - name: Commit version update
         run: |
           git config --local user.email "github-actions[bot]@users.noreply.github.com"
           git config --local user.name "github-actions[bot]"
-          git add noaa_tides/manifest.json
+          git add custom_components/noaa_tides/manifest.json
           git commit -m "Bump version to ${{ github.event.inputs.version }}"
 
-      - name: Push changes
-        uses: ad-m/github-push-action@master
-        with:
-          github_token: ${{ secrets.GITHUB_TOKEN }}
-          branch: ${{ github.ref }}
-
-      - name: Create and push tag
+      - name: Create tag
         run: |
           git tag -a "v${{ github.event.inputs.version }}" -m "Release v${{ github.event.inputs.version }}"
+
+      - name: Push changes and tag
+        run: |
+          # Push the commit to the branch that triggered the workflow
+          git push origin HEAD:refs/heads/${{ github.ref_name }}
           git push origin "v${{ github.event.inputs.version }}"
 
       - name: Generate changelog
@@ -84,12 +83,21 @@ jobs:
           echo "$CHANGELOG" > CHANGELOG.md
           cat CHANGELOG.md
 
+      - name: Create release archive
+        run: |
+          # Create a zip file of the integration for HACS
+          cd custom_components/noaa_tides
+          zip -r ../../noaa_tides.zip . -x "*.pyc" -x "__pycache__/*" -x "*/__pycache__/*"
+          cd ../..
+          ls -lh noaa_tides.zip
+
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v1
         with:
           tag_name: v${{ github.event.inputs.version }}
           name: Release v${{ github.event.inputs.version }}
           body_path: CHANGELOG.md
+          files: noaa_tides.zip
           draft: false
           prerelease: false
         env:
