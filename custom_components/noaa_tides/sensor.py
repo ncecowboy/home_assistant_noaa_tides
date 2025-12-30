@@ -99,9 +99,11 @@ async def async_setup_platform(hass, config, async_add_entities, discovery_info=
     station_type = config[CONF_STATION_TYPE]
     name = config.get(CONF_NAME)
     
-    # Default to lst_ldt if not specified in YAML config
+    # For YAML config, default to lst_ldt if not specified
+    # (UI config always uses system settings)
     timezone = config.get(CONF_TIME_ZONE, DEFAULT_TIMEZONE)
 
+    # For YAML config, fall back to system settings if not specified
     if CONF_UNIT_SYSTEM in config:
         unit_system = config[CONF_UNIT_SYSTEM]
     elif hass.config.units is METRIC_SYSTEM:
