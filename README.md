@@ -8,7 +8,7 @@ This library is a [fork of the core component](https://www.home-assistant.io/int
 - **YAML Configuration**: Still supported for backward compatibility
 - **HACS Compatible**: Install and manage through HACS
 - **Automated Releases**: Version management through GitHub Actions
-- Multiple sensor types: Tides, Water Temperature, and Buoy data
+- Multiple sensor types: Tides, Water Temperature, Buoy data, and Current Water Level
 
 ## Installation
 
@@ -78,11 +78,15 @@ sensor:
 
 Different stations support different features (products/datums), so use the [station finder](https://tidesandcurrents.noaa.gov/) to select the right station for `tides` vs `temp` types.
 
-## Available Sensor Attributes
+## Available Sensors and Attributes
 
-### Tides Sensor Attributes
+### Tides Station Sensors
 
-The tides sensor provides the following attributes:
+When you configure a `tides` type station, you will get **two sensors**:
+
+#### 1. Tides Sensor
+
+The main tides sensor shows the next predicted tide event and provides the following attributes:
 
 - **`next_tide_time`**: Time of the next high or low tide (e.g., "3:45 PM")
 - **`next_tide_type`**: Type of next tide ("High" or "Low")
@@ -93,6 +97,15 @@ The tides sensor provides the following attributes:
 - **`tide_factor`**: Calculated tide position between 0-100% (based on sine curve between last and next tide)
 - **`current_water_level`**: Current observed water level (in feet or meters, updates with scan interval)
 - **`current_water_level_time`**: Timestamp of the current water level observation (ISO 8601 format)
+
+#### 2. Current Water Level Sensor
+
+A dedicated sensor for the current observed water level at the station. This sensor:
+
+- Shows the **current water level** as its main state (in feet or meters)
+- Updates with the scan interval (every hour by default)
+- Has device class `distance` for proper Home Assistant integration
+- Includes an **`observation_time`** attribute with the timestamp of the observation (ISO 8601 format)
 
 ### Temperature Sensor Attributes
 
@@ -122,13 +135,11 @@ template:
       - name: "Water level"
         state: "{{ state_attr('sensor.tides', 'tide_factor') }}"
         unit_of_measurement: '%'
-      - name: "Current water level"
-        state: "{{ state_attr('sensor.tides', 'current_water_level') }}"
-        unit_of_measurement: 'ft'  # or 'm' for metric
-        device_class: distance
       - name: "Beach air temp"
         state: "{{ state_attr('sensor.water_temp', 'air_temperature') }}"
 ```
+
+**Note**: The current water level is now available as a dedicated sensor (e.g., `sensor.current_water_level`) and no longer needs a template sensor. You can use it directly in your dashboards!
 
 Note that the tide curve requires `sensor.internet_time` to be updated correctly. Use the `time_date` sensor platform like this:
 
