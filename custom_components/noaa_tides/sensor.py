@@ -421,6 +421,22 @@ class NOAATidesAndCurrentsSensor(CoordinatorEntity, SensorEntity):
             entry_type=DeviceEntryType.SERVICE,
         )
 
+    def _extract_coordinator_data(self):
+        """Extract predictions and current water level from coordinator data."""
+        coordinator_data = self.coordinator.data
+        if coordinator_data is None:
+            return None, None
+        
+        if isinstance(coordinator_data, dict):
+            predictions = coordinator_data.get("predictions")
+            current_water_level = coordinator_data.get("current_water_level")
+        else:
+            # Legacy data structure (just predictions)
+            predictions = coordinator_data
+            current_water_level = None
+        
+        return predictions, current_water_level
+
     def update_tide_factor_from_attr(self):
         _LOGGER.debug("Updating sine fit for tide factor")
         if self.attr is None:
@@ -445,17 +461,12 @@ class NOAATidesAndCurrentsSensor(CoordinatorEntity, SensorEntity):
         if self.attr is None:
             self.attr = {}
         
-        coordinator_data = self.coordinator.data
-        if coordinator_data is None:
-            return self.attr
-
-        # Extract predictions data from the new structure
-        data = coordinator_data.get("predictions") if isinstance(coordinator_data, dict) else coordinator_data
+        # Extract predictions and current water level using helper method
+        data, current_water_level_data = self._extract_coordinator_data()
         if data is None:
             return self.attr
 
         # Add current water level data if available from coordinator
-        current_water_level_data = coordinator_data.get("current_water_level") if isinstance(coordinator_data, dict) else None
         if current_water_level_data is not None and not current_water_level_data.empty:
             try:
                 # Get the most recent water level observation
@@ -493,12 +504,8 @@ class NOAATidesAndCurrentsSensor(CoordinatorEntity, SensorEntity):
     @property
     def native_value(self):
         """Return the state of the device."""
-        coordinator_data = self.coordinator.data
-        if coordinator_data is None:
-            return None
-        
-        # Extract predictions data from the new structure
-        data = coordinator_data.get("predictions") if isinstance(coordinator_data, dict) else coordinator_data
+        # Extract predictions using helper method
+        data, _ = self._extract_coordinator_data()
         if data is None:
             return None
             
@@ -615,16 +622,23 @@ class NOAACurrentWaterLevelSensor(CoordinatorEntity, SensorEntity):
             entry_type=DeviceEntryType.SERVICE,
         )
 
+    def _get_current_water_level_data(self):
+        """Extract current water level data from coordinator."""
+        coordinator_data = self.coordinator.data
+        if coordinator_data is None:
+            return None
+        
+        if isinstance(coordinator_data, dict):
+            return coordinator_data.get("current_water_level")
+        
+        return None
+
     @property
     def extra_state_attributes(self):
         """Return the state attributes of this device."""
         attr = {}
-        coordinator_data = self.coordinator.data
-        if coordinator_data is None:
-            return attr
+        current_water_level_data = self._get_current_water_level_data()
         
-        # Extract current water level data from coordinator
-        current_water_level_data = coordinator_data.get("current_water_level") if isinstance(coordinator_data, dict) else None
         if current_water_level_data is not None and not current_water_level_data.empty:
             try:
                 latest_time = current_water_level_data.index[-1]
@@ -637,12 +651,8 @@ class NOAACurrentWaterLevelSensor(CoordinatorEntity, SensorEntity):
     @property
     def native_value(self):
         """Return the current water level."""
-        coordinator_data = self.coordinator.data
-        if coordinator_data is None:
-            return None
+        current_water_level_data = self._get_current_water_level_data()
         
-        # Extract current water level data from coordinator
-        current_water_level_data = coordinator_data.get("current_water_level") if isinstance(coordinator_data, dict) else None
         if current_water_level_data is None or current_water_level_data.empty:
             return None
         
