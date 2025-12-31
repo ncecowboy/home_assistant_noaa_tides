@@ -472,8 +472,8 @@ class NOAATidesAndCurrentsSensor(CoordinatorEntity, SensorEntity):
                 # Get the most recent water level observation
                 latest_observation = current_water_level_data.iloc[-1]
                 latest_time = current_water_level_data.index[-1]
-                # 'v' is the water level value column from NOAA API
-                self.attr["current_water_level"] = latest_observation.v
+                # 'water_level' is the renamed column from NOAA API (originally 'v')
+                self.attr["current_water_level"] = latest_observation.water_level
                 self.attr["current_water_level_time"] = latest_time.strftime("%Y-%m-%dT%H:%M")
             except (IndexError, AttributeError) as err:
                 _LOGGER.debug("Could not extract current water level data: %s", err)
@@ -659,8 +659,8 @@ class NOAACurrentWaterLevelSensor(CoordinatorEntity, SensorEntity):
         try:
             # Get the most recent water level observation
             latest_observation = current_water_level_data.iloc[-1]
-            # 'v' is the water level value column from NOAA API
-            return latest_observation.v
+            # 'water_level' is the renamed column from NOAA API (originally 'v')
+            return latest_observation.water_level
         except (IndexError, AttributeError) as err:
             _LOGGER.debug("Could not extract current water level: %s", err)
             return None
