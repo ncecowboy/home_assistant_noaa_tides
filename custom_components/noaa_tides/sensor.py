@@ -11,13 +11,14 @@ from typing import Any, Optional
 import noaa_coops as nc
 import voluptuous as vol
 
-from homeassistant.components.sensor import PLATFORM_SCHEMA, SensorEntity
+from homeassistant.components.sensor import PLATFORM_SCHEMA, SensorEntity, SensorStateClass
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import (
     ATTR_ATTRIBUTION,
     CONF_NAME,
     CONF_TIME_ZONE,
     CONF_UNIT_SYSTEM,
+    UnitOfLength,
     UnitOfTemperature,
 )
 from homeassistant.core import HomeAssistant
@@ -92,8 +93,8 @@ class NOAATidesDataUpdateCoordinator(DataUpdateCoordinator):
         except (ValueError, requests.exceptions.ConnectionError) as err:
             raise UpdateFailed(f"Error communicating with API: {err}") from err
 
-    def _fetch_data(self) -> Any:
-        """Fetch the tide predictions data."""
+    def _fetch_data(self) -> dict[str, Any]:
+        """Fetch the tide predictions data and current water level."""
         if self.station is None:
             _LOGGER.debug("No station object exists yet- creating one.")
             self.station = nc.Station(self.station_id)
@@ -114,7 +115,34 @@ class NOAATidesDataUpdateCoordinator(DataUpdateCoordinator):
         )
 
         _LOGGER.debug("Tide data queried with start time set to %s", begin_date)
-        return df_predictions
+        
+        # Fetch current water level data
+        current_water_level = None
+        try:
+            current_end = datetime.now()
+            current_begin = current_end - timedelta(hours=WATER_LEVEL_LOOKBACK_HOURS)
+            df_water_level = self.station.get_data(
+                begin_date=current_begin.strftime("%Y%m%d %H:%M"),
+                end_date=current_end.strftime("%Y%m%d %H:%M"),
+                product="water_level",
+                datum="MLLW",
+                units=self.unit_system,
+                time_zone=self.timezone,
+            )
+            current_water_level = df_water_level
+            _LOGGER.debug(
+                "Current water level data retrieved: %d records",
+                len(df_water_level) if df_water_level is not None else 0,
+            )
+        except ValueError as err:
+            _LOGGER.debug("Could not fetch current water level data: %s", err.args)
+        except requests.exceptions.ConnectionError as err:
+            _LOGGER.debug("Couldn't connect to NOAA Tides and Currents API for water level: %s", err)
+        
+        return {
+            "predictions": df_predictions,
+            "current_water_level": current_water_level,
+        }
 
 
 class NOAATemperatureDataUpdateCoordinator(DataUpdateCoordinator):
@@ -272,21 +300,27 @@ async def async_setup_entry(
     else:
         unit_system = UNIT_SYSTEMS[0]  # "english"
 
-    # Create appropriate sensor based on station type
+    # Create appropriate sensor(s) based on station type
+    sensors = []
     if station_type == "tides":
-        sensor = NOAATidesAndCurrentsSensor(
+        # Create tides sensor
+        sensors.append(NOAATidesAndCurrentsSensor(
             coordinator, entry.entry_id, name, station_id, unit_system
-        )
+        ))
+        # Create current water level sensor
+        sensors.append(NOAACurrentWaterLevelSensor(
+            coordinator, entry.entry_id, name, station_id, unit_system
+        ))
     elif station_type == "temp":
-        sensor = NOAATemperatureSensor(
+        sensors.append(NOAATemperatureSensor(
             coordinator, entry.entry_id, name, station_id, unit_system
-        )
+        ))
     else:  # buoy
-        sensor = NOAABuoySensor(
+        sensors.append(NOAABuoySensor(
             coordinator, entry.entry_id, name, station_id, unit_system
-        )
+        ))
 
-    async_add_entities([sensor], True)
+    async_add_entities(sensors, True)
 
 
 async def async_setup_platform(hass, config, async_add_entities, discovery_info=None):
@@ -324,24 +358,30 @@ async def async_setup_platform(hass, config, async_add_entities, discovery_info=
     # Fetch initial data
     await coordinator.async_config_entry_first_refresh()
     
-    # Create sensor with coordinator
+    # Create sensor(s) with coordinator
     # For YAML config, use station_id as entry_id since there's no config entry
     entry_id = f"yaml_{station_id}_{station_type}"
     
+    sensors = []
     if station_type == "tides":
-        sensor = NOAATidesAndCurrentsSensor(
+        # Create tides sensor
+        sensors.append(NOAATidesAndCurrentsSensor(
             coordinator, entry_id, name, station_id, unit_system
-        )
+        ))
+        # Create current water level sensor
+        sensors.append(NOAACurrentWaterLevelSensor(
+            coordinator, entry_id, name, station_id, unit_system
+        ))
     elif station_type == "temp":
-        sensor = NOAATemperatureSensor(
+        sensors.append(NOAATemperatureSensor(
             coordinator, entry_id, name, station_id, unit_system
-        )
+        ))
     else:  # buoy
-        sensor = NOAABuoySensor(
+        sensors.append(NOAABuoySensor(
             coordinator, entry_id, name, station_id, unit_system
-        )
+        ))
 
-    async_add_entities([sensor], True)
+    async_add_entities(sensors, True)
 
 class NOAATidesAndCurrentsSensor(CoordinatorEntity, SensorEntity):
     """Representation of a NOAA Tides and Currents sensor."""
@@ -405,16 +445,22 @@ class NOAATidesAndCurrentsSensor(CoordinatorEntity, SensorEntity):
         if self.attr is None:
             self.attr = {}
         
-        data = self.coordinator.data
+        coordinator_data = self.coordinator.data
+        if coordinator_data is None:
+            return self.attr
+
+        # Extract predictions data from the new structure
+        data = coordinator_data.get("predictions") if isinstance(coordinator_data, dict) else coordinator_data
         if data is None:
             return self.attr
 
-        # Add current water level data if available
-        if self.current_water_level_data is not None and not self.current_water_level_data.empty:
+        # Add current water level data if available from coordinator
+        current_water_level_data = coordinator_data.get("current_water_level") if isinstance(coordinator_data, dict) else None
+        if current_water_level_data is not None and not current_water_level_data.empty:
             try:
                 # Get the most recent water level observation
-                latest_observation = self.current_water_level_data.iloc[-1]
-                latest_time = self.current_water_level_data.index[-1]
+                latest_observation = current_water_level_data.iloc[-1]
+                latest_time = current_water_level_data.index[-1]
                 # 'v' is the water level value column from NOAA API
                 self.attr["current_water_level"] = latest_observation.v
                 self.attr["current_water_level_time"] = latest_time.strftime("%Y-%m-%dT%H:%M")
@@ -447,9 +493,15 @@ class NOAATidesAndCurrentsSensor(CoordinatorEntity, SensorEntity):
     @property
     def native_value(self):
         """Return the state of the device."""
-        data = self.coordinator.data
+        coordinator_data = self.coordinator.data
+        if coordinator_data is None:
+            return None
+        
+        # Extract predictions data from the new structure
+        data = coordinator_data.get("predictions") if isinstance(coordinator_data, dict) else coordinator_data
         if data is None:
             return None
+            
         now = datetime.now()
         for index, row in data.iterrows():
             if index > now:
@@ -523,6 +575,85 @@ class NOAATidesAndCurrentsSensor(CoordinatorEntity, SensorEntity):
             _LOGGER.debug("Couldn't connect to NOAA Tides and Currents API for water level: %s", err)
             self.current_water_level_data = None
         return None
+
+class NOAACurrentWaterLevelSensor(CoordinatorEntity, SensorEntity):
+    """Representation of a NOAA Current Water Level sensor."""
+
+    _attr_has_entity_name = True
+    _attr_attribution = DEFAULT_ATTRIBUTION
+    _attr_device_class = SensorDeviceClass.DISTANCE
+    _attr_state_class = SensorStateClass.MEASUREMENT
+
+    def __init__(
+        self,
+        coordinator: NOAATidesDataUpdateCoordinator,
+        entry_id: str,
+        name: str,
+        station_id: str,
+        unit_system: str,
+    ):
+        """Initialize the sensor."""
+        super().__init__(coordinator)
+        self._attr_unique_id = f"{entry_id}_current_water_level"
+        self._attr_name = "Current Water Level"
+        self._station_name = name
+        self._station_id = station_id
+        self._unit_system = unit_system
+        self._entry_id = entry_id
+        self._attr_native_unit_of_measurement = (
+            UnitOfLength.METERS if unit_system == "metric" else UnitOfLength.FEET
+        )
+
+    @property
+    def device_info(self) -> DeviceInfo:
+        """Return device information about this sensor."""
+        return DeviceInfo(
+            identifiers={(DOMAIN, self._station_id)},
+            name=self._station_name,
+            manufacturer="NOAA",
+            model="Tides and Currents Station",
+            entry_type=DeviceEntryType.SERVICE,
+        )
+
+    @property
+    def extra_state_attributes(self):
+        """Return the state attributes of this device."""
+        attr = {}
+        coordinator_data = self.coordinator.data
+        if coordinator_data is None:
+            return attr
+        
+        # Extract current water level data from coordinator
+        current_water_level_data = coordinator_data.get("current_water_level") if isinstance(coordinator_data, dict) else None
+        if current_water_level_data is not None and not current_water_level_data.empty:
+            try:
+                latest_time = current_water_level_data.index[-1]
+                attr["observation_time"] = latest_time.strftime("%Y-%m-%dT%H:%M")
+            except (IndexError, AttributeError) as err:
+                _LOGGER.debug("Could not extract water level timestamp: %s", err)
+        
+        return attr
+
+    @property
+    def native_value(self):
+        """Return the current water level."""
+        coordinator_data = self.coordinator.data
+        if coordinator_data is None:
+            return None
+        
+        # Extract current water level data from coordinator
+        current_water_level_data = coordinator_data.get("current_water_level") if isinstance(coordinator_data, dict) else None
+        if current_water_level_data is None or current_water_level_data.empty:
+            return None
+        
+        try:
+            # Get the most recent water level observation
+            latest_observation = current_water_level_data.iloc[-1]
+            # 'v' is the water level value column from NOAA API
+            return latest_observation.v
+        except (IndexError, AttributeError) as err:
+            _LOGGER.debug("Could not extract current water level: %s", err)
+            return None
 
 class NOAATemperatureSensor(CoordinatorEntity, SensorEntity):
     """Representation of a NOAA Temperature sensor."""
