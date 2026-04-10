@@ -36,7 +36,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     
     # Determine unit system and timezone from Home Assistant config
     timezone = DEFAULT_TIMEZONE
-    if hass.config.units is METRIC_SYSTEM:
+    if hass.config.units == METRIC_SYSTEM:
         unit_system = UNIT_SYSTEMS[1]  # "metric"
     else:
         unit_system = UNIT_SYSTEMS[0]  # "english"

@@ -14,7 +14,6 @@ import voluptuous as vol
 from homeassistant.components.sensor import PLATFORM_SCHEMA, SensorEntity, SensorStateClass
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import (
-    ATTR_ATTRIBUTION,
     CONF_NAME,
     CONF_TIME_ZONE,
     CONF_UNIT_SYSTEM,
@@ -295,7 +294,7 @@ async def async_setup_entry(
     name = entry.data.get(CONF_NAME, DEFAULT_NAME)
     
     # Determine unit system from Home Assistant config
-    if hass.config.units is METRIC_SYSTEM:
+    if hass.config.units == METRIC_SYSTEM:
         unit_system = UNIT_SYSTEMS[1]  # "metric"
     else:
         unit_system = UNIT_SYSTEMS[0]  # "english"
@@ -336,7 +335,7 @@ async def async_setup_platform(hass, config, async_add_entities, discovery_info=
     # For YAML config, fall back to system settings if not specified
     if CONF_UNIT_SYSTEM in config:
         unit_system = config[CONF_UNIT_SYSTEM]
-    elif hass.config.units is METRIC_SYSTEM:
+    elif hass.config.units == METRIC_SYSTEM:
         unit_system = UNIT_SYSTEMS[1]
     else:
         unit_system = UNIT_SYSTEMS[0]
@@ -518,70 +517,6 @@ class NOAATidesAndCurrentsSensor(CoordinatorEntity, SensorEntity):
                     next_tide = "Low"
                 tide_time = index.strftime("%-I:%M %p")
                 return f"{next_tide} tide at {tide_time}"
-
-    def noaa_coops_update(self):
-        _LOGGER.debug("update queried.")
-
-        if self._station is None:
-            _LOGGER.debug("No station object exists yet- creating one.")
-            try:
-                self._station = nc.Station(self._station_id)
-            except requests.exceptions.ConnectionError as err:
-                _LOGGER.error("Couldn't create a NOAA station object. Will retry next update. Error: %s", err)
-                self._station = None
-                return
-
-        begin = datetime.now() - timedelta(hours=24)
-        begin_date = begin.strftime("%Y%m%d %H:%M")
-        end = begin + timedelta(hours=48)
-        end_date = end.strftime("%Y%m%d %H:%M")
-        try:
-            df_predictions = self._station.get_data(
-                begin_date=begin_date,
-                end_date=end_date,
-                product="predictions",
-                datum="MLLW",
-                interval="hilo",
-                units=self._unit_system,
-                time_zone=self._timezone,
-            )
-
-            self.data = df_predictions
-            _LOGGER.debug("Data = %s", self.data)
-            _LOGGER.debug(
-                "Recent Tide data queried with start time set to %s",
-                begin_date,
-            )
-        except ValueError as err:
-            _LOGGER.error("Check NOAA Tides and Currents: %s", err.args)
-        except requests.exceptions.ConnectionError as err:
-            _LOGGER.error("Couldn't connect to NOAA Tides and Currents API: %s", err)
-
-        # Fetch current water level data
-        try:
-            current_end = datetime.now()
-            current_begin = current_end - timedelta(hours=WATER_LEVEL_LOOKBACK_HOURS)
-            df_water_level = self._station.get_data(
-                begin_date=current_begin.strftime("%Y%m%d %H:%M"),
-                end_date=current_end.strftime("%Y%m%d %H:%M"),
-                product="water_level",
-                datum="MLLW",
-                units=self._unit_system,
-                time_zone=self._timezone,
-            )
-            self.current_water_level_data = df_water_level
-            _LOGGER.debug(
-                "Current water level data retrieved: %d records, latest at %s",
-                len(df_water_level) if df_water_level is not None else 0,
-                current_end.strftime("%Y%m%d %H:%M"),
-            )
-        except ValueError as err:
-            _LOGGER.debug("Could not fetch current water level data: %s", err.args)
-            self.current_water_level_data = None
-        except requests.exceptions.ConnectionError as err:
-            _LOGGER.debug("Couldn't connect to NOAA Tides and Currents API for water level: %s", err)
-            self.current_water_level_data = None
-        return None
 
 class NOAACurrentWaterLevelSensor(CoordinatorEntity, SensorEntity):
     """Representation of a NOAA Current Water Level sensor."""

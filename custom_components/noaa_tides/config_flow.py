@@ -9,10 +9,9 @@ import requests
 import voluptuous as vol
 
 from homeassistant import config_entries
+from homeassistant.config_entries import ConfigFlowResult
 from homeassistant.const import CONF_NAME
 from homeassistant.core import HomeAssistant, callback
-from homeassistant.data_entry_flow import FlowResult
-from homeassistant.helpers import config_validation as cv
 
 from .stations import (
     fetch_noaa_stations,
@@ -72,7 +71,7 @@ class NOAATidesConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
 
     async def async_step_user(
         self, user_input: dict[str, Any] | None = None
-    ) -> FlowResult:
+    ) -> ConfigFlowResult:
         """Handle the initial step - choose station type and entry method."""
         errors: dict[str, str] = {}
 
@@ -100,7 +99,7 @@ class NOAATidesConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
 
     async def async_step_state(
         self, user_input: dict[str, Any] | None = None
-    ) -> FlowResult:
+    ) -> ConfigFlowResult:
         """Handle state selection step."""
         errors: dict[str, str] = {}
 
@@ -138,7 +137,7 @@ class NOAATidesConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
 
     async def async_step_station(
         self, user_input: dict[str, Any] | None = None
-    ) -> FlowResult:
+    ) -> ConfigFlowResult:
         """Handle station selection step."""
         errors: dict[str, str] = {}
 
@@ -177,7 +176,7 @@ class NOAATidesConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
 
     async def async_step_manual(
         self, user_input: dict[str, Any] | None = None
-    ) -> FlowResult:
+    ) -> ConfigFlowResult:
         """Handle manual station ID entry with instant verification."""
         errors: dict[str, str] = {}
 
@@ -204,12 +203,18 @@ class NOAATidesConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         )
 
         return self.async_show_form(
-            step_id="manual", data_schema=data_schema, errors=errors
+            step_id="manual",
+            data_schema=data_schema,
+            errors=errors,
+            description_placeholders={
+                "noaa_url": "https://tidesandcurrents.noaa.gov/",
+                "ndbc_url": "https://www.ndbc.noaa.gov/",
+            },
         )
 
     async def async_step_name(
         self, user_input: dict[str, Any] | None = None
-    ) -> FlowResult:
+    ) -> ConfigFlowResult:
         """Handle name entry step."""
         errors: dict[str, str] = {}
 
@@ -281,19 +286,15 @@ class NOAATidesConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         config_entry: config_entries.ConfigEntry,
     ) -> NOAATidesOptionsFlowHandler:
         """Get the options flow for this handler."""
-        return NOAATidesOptionsFlowHandler(config_entry)
+        return NOAATidesOptionsFlowHandler()
 
 
 class NOAATidesOptionsFlowHandler(config_entries.OptionsFlow):
     """Handle options flow for NOAA Tides."""
 
-    def __init__(self, config_entry: config_entries.ConfigEntry) -> None:
-        """Initialize options flow."""
-        self.config_entry = config_entry
-
     async def async_step_init(
         self, user_input: dict[str, Any] | None = None
-    ) -> FlowResult:
+    ) -> ConfigFlowResult:
         """Manage the options."""
         # No options to configure - timezone and unit system come from Home Assistant
         return self.async_abort(reason="no_options")
