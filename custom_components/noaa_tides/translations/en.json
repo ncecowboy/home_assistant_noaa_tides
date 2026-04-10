@@ -29,7 +29,7 @@
       },
       "manual": {
         "title": "Enter Station ID",
-        "description": "Enter station ID from https://tidesandcurrents.noaa.gov/ (for tides/temp) or https://www.ndbc.noaa.gov/ (for buoy). The station will be verified before proceeding.",
+        "description": "Enter station ID from {noaa_url} (for tides/temp) or {ndbc_url} (for buoy). The station will be verified before proceeding.",
         "data": {
           "station_id": "Station ID"
         }

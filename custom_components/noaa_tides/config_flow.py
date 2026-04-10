@@ -203,7 +203,13 @@ class NOAATidesConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         )
 
         return self.async_show_form(
-            step_id="manual", data_schema=data_schema, errors=errors
+            step_id="manual",
+            data_schema=data_schema,
+            errors=errors,
+            description_placeholders={
+                "noaa_url": "https://tidesandcurrents.noaa.gov/",
+                "ndbc_url": "https://www.ndbc.noaa.gov/",
+            },
         )
 
     async def async_step_name(
